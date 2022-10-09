@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@components/*": ["./src/components/*"],
+      "@hooks/*": ["./src/hooks/*"],
+
+      "@utils/*": ["./src/lib/utils/*"],
+      "@constants/*": ["./src/lib/constants/*"],
+      "@ts/*": ["./src/lib/ts/*"],
+      "@lib/*": ["./src/lib/*"],
+
+      "@media/*": ["./src/media/*"],
+      "@styles/*": ["./src/styles/*"],
+
+      "@src/*": ["./src/*"]
+    }
+  }
+}
