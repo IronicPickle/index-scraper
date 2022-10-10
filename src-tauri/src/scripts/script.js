@@ -22,33 +22,48 @@ const goBackToClients = () => {
   clientButton.click();
 };
 
-const queryDoc = async (queryFunc) => {
+const queryDoc = async (queryFunc, noRetry) => {
   while (true) {
     try {
       const element = queryFunc();
       if (element == null) throw new Error("No element found");
       return element;
     } catch (_) {
+      if (noRetry) break;
       await sleep(500);
     }
   }
 };
 
+const clientsToCsv = (clients) => {
+  let csv = "";
+  const fieldsTop = [];
+  const fieldsBottom = [];
+  for (const [category, categoryData] of Object.entries(clients[0])) {
+    for (const [key] of Object.entries(categoryData)) {
+      fieldsTop.push(category);
+      fieldsBottom.push(key);
+    }
+  }
+  csv += fieldsTop.join(",") + "\r\n";
+  csv += fieldsBottom.join(",") + "\r\n";
+
+  for (const clientData of Object.values(clients)) {
+    const fields = [];
+    for (const categoryData of Object.values(clientData)) {
+      for (const value of Object.values(categoryData)) {
+        fields.push(value);
+      }
+    }
+    csv += fields.join(",") + "\r\n";
+  }
+
+  console.log(csv);
+};
+
 let clients = [];
 
-const keys = [
-  "Client ID:",
-  "Company Name:",
-  "Branch:",
-  "Address:",
-  "Town:",
-  "Country:",
-  "Post Code:",
-  "Phone Number:",
-  "Fax Number:",
-  "DX Number:",
-  "DX Exchange:",
-];
+const categories = ["Client Contact Details", "Admin options"];
 
 const scrapeClientData = async () => {
   const tbodyElement = await queryDoc(
@@ -58,12 +73,31 @@ const scrapeClientData = async () => {
   const trElements = tbodyElement.getElementsByTagName("tr");
 
   const data = {};
+  let category = null;
 
   for await (const trElement of trElements) {
     const key = await queryDoc(() => trElement.firstElementChild.innerText);
-    if (!keys.includes(key)) continue;
-    const value = await queryDoc(() => trElement.lastElementChild.firstElementChild.value);
-    data[key] = value;
+    const value = await queryDoc(() => trElement.lastElementChild.firstElementChild.value, true);
+
+    if (!key) {
+      const newCategory = await queryDoc(
+        () => trElement.firstElementChild.firstElementChild.value,
+        true,
+      );
+      if (newCategory != null) {
+        if (categories.includes(newCategory)) {
+          category = newCategory;
+          data[category] = {};
+        } else {
+          category = null;
+        }
+      }
+      continue;
+    }
+
+    if (!category) continue;
+
+    data[category][key] = value;
   }
 
   tbodyElement.remove();
@@ -96,6 +130,8 @@ const startScrape = async () => {
 
 const start = () => {
   const { pathname } = location;
+
+  console.log({ pathname });
 
   switch (pathname) {
     case "/": {
