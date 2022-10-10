@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 fn get_script() -> std::io::Result<String> {
-    let mut file = File::open("./src/script.js")?;
+    let mut file = File::open("./src/scripts/script.js")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
     Ok(contents)
