@@ -1,13 +1,21 @@
+const USERNAME = "%USERNAME%";
+const PASSWORD = "%PASSWORD%";
+const FILE_UUID = "%FILE_UUID%";
+
 const byId = (id) => document.getElementById(id);
 const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const login = () => {
+  if (sessionStorage.getItem("loginAttempted"))
+    return downloadError("Could not login, your username or password may be incorrect.");
+  sessionStorage.setItem("loginAttempted", true);
+
   const usernameInput = byId("login");
   const passwordInput = byId("password");
   const loginButton = byId("loginbutton");
 
-  usernameInput.value = "NathanRath1";
-  passwordInput.value = "NathanRath1";
+  usernameInput.value = USERNAME;
+  passwordInput.value = PASSWORD;
   loginButton.click();
 };
 
@@ -39,8 +47,8 @@ const clientsToCsv = (clients) => {
   let csv = "";
   const fieldsTop = [];
   const fieldsBottom = [];
-  for (const [category, categoryData] of Object.entries(clients[0])) {
-    for (const [key] of Object.entries(categoryData)) {
+  for (const { category, data } of Object.values(clients[0])) {
+    for (const { key } of Object.values(data)) {
       fieldsTop.push(category);
       fieldsBottom.push(key);
     }
@@ -48,17 +56,41 @@ const clientsToCsv = (clients) => {
   csv += fieldsTop.join(",") + "\r\n";
   csv += fieldsBottom.join(",") + "\r\n";
 
-  for (const clientData of Object.values(clients)) {
+  for (const client of Object.values(clients)) {
     const fields = [];
-    for (const categoryData of Object.values(clientData)) {
-      for (const value of Object.values(categoryData)) {
+    for (const { data } of Object.values(client)) {
+      for (const { value } of Object.values(data)) {
         fields.push(value);
       }
     }
     csv += fields.join(",") + "\r\n";
   }
 
-  console.log(csv);
+  return csv;
+};
+
+const downloadCsv = (csv) => {
+  const downloadLink = document.createElement("a");
+  const blob = new Blob(["\ufeff", csv]);
+  const url = URL.createObjectURL(blob);
+  downloadLink.href = url;
+  downloadLink.download = `clients-${FILE_UUID}.csv`;
+
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+};
+
+const downloadError = (error) => {
+  const downloadLink = document.createElement("a");
+  const blob = new Blob([error]);
+  const url = URL.createObjectURL(blob);
+  downloadLink.href = url;
+  downloadLink.download = `error-${FILE_UUID}.txt`;
+
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
 };
 
 let clients = [];
@@ -72,8 +104,9 @@ const scrapeClientData = async () => {
   );
   const trElements = tbodyElement.getElementsByTagName("tr");
 
-  const data = {};
+  const data = [];
   let category = null;
+  let i = 0;
 
   for await (const trElement of trElements) {
     const key = await queryDoc(() => trElement.firstElementChild.innerText);
@@ -87,7 +120,11 @@ const scrapeClientData = async () => {
       if (newCategory != null) {
         if (categories.includes(newCategory)) {
           category = newCategory;
-          data[category] = {};
+          i = data.length;
+          data.push({
+            category,
+            data: [],
+          });
         } else {
           category = null;
         }
@@ -97,7 +134,10 @@ const scrapeClientData = async () => {
 
     if (!category) continue;
 
-    data[category][key] = value;
+    data[i].data.push({
+      key,
+      value,
+    });
   }
 
   tbodyElement.remove();
@@ -110,41 +150,44 @@ const startScrape = async () => {
     document.getElementById("existing").firstChild.children.item(1),
   );
 
-  let max = 3;
+  let max = 1;
   let i = 0;
 
   for await (const trElement of tbodyElement.children) {
-    if (i >= max) return;
+    if (i >= max) break;
     ++i;
     trElement.click();
 
-    const clientData = await scrapeClientData();
-
-    console.log(clientData);
-
-    return;
+    clients.push(await scrapeClientData());
 
     goBackToClients();
   }
+
+  const csv = clientsToCsv(clients);
+
+  downloadCsv(csv);
 };
 
 const start = () => {
   const { pathname } = location;
 
-  console.log({ pathname });
+  console.log({ USERNAME, PASSWORD });
 
   switch (pathname) {
     case "/": {
       login();
+      break;
     }
     case "/2.7/case-management": {
       goToClients();
+      break;
     }
     case "/2.7/client-management": {
       startScrape();
+      break;
     }
     default: {
-      console.log("done");
+      break;
     }
   }
 };

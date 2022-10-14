@@ -38,7 +38,7 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": ["src/scripts/script.js"],
+      "resources": ["src/scripts/*"],
       "shortDescription": "",
       "targets": "all",
       "windows": {
