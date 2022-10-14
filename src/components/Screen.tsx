@@ -64,7 +64,7 @@ export default function Screen() {
             <input
               name="password"
               id="password"
-              type="text"
+              type="password"
               placeholder="Password"
               value={password}
               onChange={({ currentTarget: { value } }) => setPassword(value)}

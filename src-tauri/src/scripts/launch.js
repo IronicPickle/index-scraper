@@ -4,6 +4,7 @@ const FILE_UUID = "%FILE_UUID%";
 
 const byId = (id) => document.getElementById(id);
 const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const randomNum = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
 const login = () => {
   if (sessionStorage.getItem("loginAttempted"))
@@ -43,14 +44,21 @@ const queryDoc = async (queryFunc, noRetry) => {
   }
 };
 
+const escapeCsv = (csv) => {
+  csv = csv.replace(/(\r\n|\n|\r|\s+|\t|&nbsp;)/gm, " ");
+  csv = csv.replace(/\"/g, '""');
+
+  return `"${csv}"`;
+};
+
 const clientsToCsv = (clients) => {
   let csv = "";
   const fieldsTop = [];
   const fieldsBottom = [];
   for (const { category, data } of Object.values(clients[0])) {
     for (const { key } of Object.values(data)) {
-      fieldsTop.push(category);
-      fieldsBottom.push(key);
+      fieldsTop.push(escapeCsv(category));
+      fieldsBottom.push(escapeCsv(key));
     }
   }
   csv += fieldsTop.join(",") + "\r\n";
@@ -60,7 +68,7 @@ const clientsToCsv = (clients) => {
     const fields = [];
     for (const { data } of Object.values(client)) {
       for (const { value } of Object.values(data)) {
-        fields.push(value);
+        fields.push(escapeCsv(value));
       }
     }
     csv += fields.join(",") + "\r\n";
@@ -93,6 +101,11 @@ const downloadError = (error) => {
   document.body.removeChild(downloadLink);
 };
 
+const cancel = () => {
+  downloadError("Cancelled");
+  window.close();
+};
+
 let clients = [];
 
 const categories = ["Client Contact Details", "Admin options"];
@@ -110,7 +123,10 @@ const scrapeClientData = async () => {
 
   for await (const trElement of trElements) {
     const key = await queryDoc(() => trElement.firstElementChild.innerText);
-    const value = await queryDoc(() => trElement.lastElementChild.firstElementChild.value, true);
+    const value = await queryDoc(
+      () => trElement.lastElementChild.querySelector("input, select, textarea").value,
+      true,
+    );
 
     if (!key) {
       const newCategory = await queryDoc(
@@ -150,17 +166,23 @@ const startScrape = async () => {
     document.getElementById("existing").firstChild.children.item(1),
   );
 
-  let max = 1;
+  let max = 3;
   let i = 0;
 
   for await (const trElement of tbodyElement.children) {
     if (i >= max) break;
     ++i;
+    coverScreen(i, tbodyElement.children.length);
+
     trElement.click();
 
     clients.push(await scrapeClientData());
 
     goBackToClients();
+
+    coverScreen(i, tbodyElement.children.length);
+
+    await sleep(randomNum(1000, 2000));
   }
 
   const csv = clientsToCsv(clients);
@@ -168,10 +190,72 @@ const startScrape = async () => {
   downloadCsv(csv);
 };
 
+const coverScreen = (current, total) => {
+  document.getElementById("scrape-cover")?.remove();
+
+  const coverElement = document.createElement("div");
+  coverElement.id = "scrape-cover";
+  coverElement.style = `
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    inset: 0;
+
+    background-color: rgba(0, 0, 0, 0.5);
+
+    z-index: 9999999;
+  `;
+
+  const promptElement = document.createElement("p");
+  promptElement.style = `
+    margin: 0;
+
+    color: #fff;
+    font-size: 48px;
+  `;
+  promptElement.innerText = "⌛ Scraping data";
+
+  const progressElement = document.createElement("p");
+  progressElement.style = `
+    margin: 0;
+
+    color: #fff;
+    font-size: 32px;
+  `;
+  progressElement.innerText = `${current} / ${total}`;
+
+  const cancelElement = document.createElement("button");
+  cancelElement.style = `
+    padding: 8px 14px;
+
+    border: 0;
+    border-radius: 5px;
+    background-color: #FF5252;
+
+    color: #fff;
+    font-size: 18px;
+    font-weight: 500;
+
+    cursor: pointer;
+  `;
+  cancelElement.innerText = "Cancel";
+  cancelElement.onclick = cancel;
+
+  coverElement.appendChild(promptElement);
+  if (current != null && total != null) coverElement.appendChild(progressElement);
+  coverElement.appendChild(cancelElement);
+
+  document.body.appendChild(coverElement);
+};
+
 const start = () => {
   const { pathname } = location;
 
-  console.log({ USERNAME, PASSWORD });
+  coverScreen();
 
   switch (pathname) {
     case "/": {
