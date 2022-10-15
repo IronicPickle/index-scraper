@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/tauri";
-import { open } from "@tauri-apps/api/dialog";
 import { useState } from "preact/hooks";
 
 interface LaunchRes {
@@ -20,15 +19,7 @@ export default function Screen() {
       return setError("Username and Password are both required!");
     }
 
-    const folder = await open({
-      title: "Choose a save location for the csv file",
-      directory: true,
-    });
-
-    if (!folder || typeof folder === "object") return;
-
     const { success, error } = await invoke<LaunchRes>("launch", {
-      folderPath: folder,
       username,
       password,
     });

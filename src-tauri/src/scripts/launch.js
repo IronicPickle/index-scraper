@@ -166,7 +166,7 @@ const startScrape = async () => {
     document.getElementById("existing").firstChild.children.item(1),
   );
 
-  let max = 3;
+  let max = 1;
   let i = 0;
 
   for await (const trElement of tbodyElement.children) {
