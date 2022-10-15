@@ -1,5 +1,6 @@
 const USERNAME = "%USERNAME%";
 const PASSWORD = "%PASSWORD%";
+const CATEGORIES = `%CATEGORIES%`;
 const FILE_UUID = "%FILE_UUID%";
 
 const byId = (id) => document.getElementById(id);
@@ -7,6 +8,8 @@ const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomNum = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
 const login = () => {
+  coverScreen("🔑 Logging in");
+
   if (sessionStorage.getItem("loginAttempted"))
     return downloadError("Could not login, your username or password may be incorrect.");
   sessionStorage.setItem("loginAttempted", true);
@@ -21,6 +24,8 @@ const login = () => {
 };
 
 const goToClients = () => {
+  coverScreen("🛰️ Navigating to clients");
+
   const topMenu = document.getElementsByClassName("top-menu").item(0);
   const clientButton = topMenu.children.item(2).firstChild;
   clientButton.click();
@@ -108,7 +113,21 @@ const cancel = () => {
 
 let clients = [];
 
-const categories = ["Client Contact Details", "Admin options"];
+const blacklist = [
+  {
+    category: "Admin options",
+    keys: ["Logo"],
+  },
+  {
+    category: "HelloSign Options",
+    keys: ["Email Logo"],
+  },
+];
+
+const isBlacklisted = (category, key) =>
+  !!blacklist.find(
+    ({ category: currCategory, keys }) => category === currCategory && keys.includes(key),
+  );
 
 const scrapeClientData = async () => {
   const tbodyElement = await queryDoc(
@@ -122,7 +141,7 @@ const scrapeClientData = async () => {
   let i = 0;
 
   for await (const trElement of trElements) {
-    const key = await queryDoc(() => trElement.firstElementChild.innerText);
+    const key = (await queryDoc(() => trElement.firstElementChild.innerText))?.replace(/:$/g, "");
     const value = await queryDoc(
       () => trElement.lastElementChild.querySelector("input, select, textarea").value,
       true,
@@ -134,7 +153,7 @@ const scrapeClientData = async () => {
         true,
       );
       if (newCategory != null) {
-        if (categories.includes(newCategory)) {
+        if (CATEGORIES.includes(newCategory)) {
           category = newCategory;
           i = data.length;
           data.push({
@@ -148,7 +167,7 @@ const scrapeClientData = async () => {
       continue;
     }
 
-    if (!category) continue;
+    if (!category || value == null || isBlacklisted(category, key)) continue;
 
     data[i].data.push({
       key,
@@ -162,25 +181,29 @@ const scrapeClientData = async () => {
 };
 
 const startScrape = async () => {
+  coverScreen("⌛ Beginning scrape");
+
   const tbodyElement = await queryDoc(() =>
     document.getElementById("existing").firstChild.children.item(1),
   );
 
-  let max = 1;
+  // let max = 5;
   let i = 0;
 
   for await (const trElement of tbodyElement.children) {
-    if (i >= max) break;
+    // if (i >= max) break;
     ++i;
-    coverScreen(i, tbodyElement.children.length);
+    const clientName = trElement.firstElementChild.innerText;
 
     trElement.click();
+
+    coverScreen(`📋 ${clientName} `, i, tbodyElement.children.length);
 
     clients.push(await scrapeClientData());
 
     goBackToClients();
 
-    coverScreen(i, tbodyElement.children.length);
+    coverScreen(`📋 ${clientName}`, i, tbodyElement.children.length);
 
     await sleep(randomNum(1000, 2000));
   }
@@ -190,7 +213,7 @@ const startScrape = async () => {
   downloadCsv(csv);
 };
 
-const coverScreen = (current, total) => {
+const coverScreen = (text, current, total) => {
   document.getElementById("scrape-cover")?.remove();
 
   const coverElement = document.createElement("div");
@@ -217,7 +240,7 @@ const coverScreen = (current, total) => {
     color: #fff;
     font-size: 48px;
   `;
-  promptElement.innerText = "⌛ Scraping data";
+  promptElement.innerText = text;
 
   const progressElement = document.createElement("p");
   progressElement.style = `
@@ -254,8 +277,6 @@ const coverScreen = (current, total) => {
 
 const start = () => {
   const { pathname } = location;
-
-  coverScreen();
 
   switch (pathname) {
     case "/": {

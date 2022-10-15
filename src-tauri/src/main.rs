@@ -43,13 +43,19 @@ fn write_file(file_path: &str, contents: &str) -> Result<()> {
 }
 
 #[tauri::command]
-async fn launch(handle: tauri::AppHandle, username: String, password: String) -> LaunchRes {
+async fn launch(
+    handle: tauri::AppHandle,
+    username: String,
+    password: String,
+    categories: String,
+) -> LaunchRes {
     let mut script = read_file("./src/scripts/launch.js").expect("Could not read script");
 
     let file_uuid = Uuid::new_v4().to_string();
 
     script = script.replace("%USERNAME%", &username);
     script = script.replace("%PASSWORD%", &password);
+    script = script.replace("%CATEGORIES%", &categories);
     script = script.replace("%FILE_UUID%", &file_uuid);
 
     let window = tauri::WindowBuilder::new(
