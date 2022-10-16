@@ -1,11 +1,11 @@
 [package]
-name = "app"
-version = "0.1.0"
-description = "A Tauri App"
+name = "index-scraper"
+version = "1.0.0"
+description = "Index Scraper"
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "app"
+default-run = "index-scraper"
 edition = "2021"
 rust-version = "1.57"
 

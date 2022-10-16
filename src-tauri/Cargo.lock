@@ -54,20 +54,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
-name = "app"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "notify",
- "opener",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "uuid 1.2.1",
-]
-
-[[package]]
 name = "atk"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1172,6 +1158,20 @@ dependencies = [
  "color_quant",
  "num-rational",
  "num-traits",
+]
+
+[[package]]
+name = "index-scraper"
+version = "1.0.0"
+dependencies = [
+ "dirs",
+ "notify",
+ "opener",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "uuid 1.2.1",
 ]
 
 [[package]]
