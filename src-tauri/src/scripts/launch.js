@@ -23,11 +23,15 @@ const login = () => {
   loginButton.click();
 };
 
-const goToClients = () => {
+const goToClients = async () => {
   coverScreen("🛰️ Navigating to clients");
 
-  const topMenu = document.getElementsByClassName("top-menu").item(0);
-  const clientButton = topMenu.children.item(2).firstChild;
+  const topMenu = await queryDoc(() => document.getElementsByClassName("top-menu").item(0));
+  const clientButton = await queryDoc(() => {
+    for (const { firstElementChild } of topMenu.children) {
+      if (firstElementChild.innerText.toLowerCase() === "clients") return firstElementChild;
+    }
+  });
   clientButton.click();
 };
 
@@ -283,15 +287,12 @@ const start = () => {
       login();
       break;
     }
-    case "/2.7/case-management": {
-      goToClients();
-      break;
-    }
     case "/2.7/client-management": {
       startScrape();
       break;
     }
     default: {
+      goToClients();
       break;
     }
   }
