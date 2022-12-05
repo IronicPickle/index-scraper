@@ -3,6 +3,8 @@ const PASSWORD = "%PASSWORD%";
 const CATEGORIES = `%CATEGORIES%`;
 const FILE_UUID = "%FILE_UUID%";
 
+const NEW_LINE = "\r\n";
+
 const byId = (id) => document.getElementById(id);
 const sleep = async (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomNum = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
@@ -60,27 +62,66 @@ const escapeCsv = (csv) => {
   return `"${csv}"`;
 };
 
+const dataToFields = (data) => {
+  const fields = [];
+  for (const { value } of Object.values(data)) {
+    fields.push(escapeCsv(value));
+  }
+
+  return fields;
+};
+
 const clientsToCsv = (clients) => {
   let csv = "";
-  const fieldsTop = [];
-  const fieldsBottom = [];
-  for (const { category, data } of Object.values(clients[0])) {
-    for (const { key } of Object.values(data)) {
-      fieldsTop.push(escapeCsv(category));
-      fieldsBottom.push(escapeCsv(key));
-    }
-  }
-  csv += fieldsTop.join(",") + "\r\n";
-  csv += fieldsBottom.join(",") + "\r\n";
 
   for (const client of Object.values(clients)) {
-    const fields = [];
-    for (const { data } of Object.values(client)) {
-      for (const { value } of Object.values(data)) {
-        fields.push(escapeCsv(value));
+    const fieldsSet = [];
+
+    const headerFieldsTop = [];
+    const headerFieldsBottom = [];
+    for (const { category, data } of Object.values(client)) {
+      if (category === "Users") continue;
+      for (const { key } of data) {
+        headerFieldsTop.push(category);
+        headerFieldsBottom.push(key);
       }
     }
-    csv += fields.join(",") + "\r\n";
+
+    const dataFields = [];
+
+    for (const { category, data } of Object.values(client)) {
+      if (category === "Users") continue;
+      dataFields.push(dataToFields(data));
+    }
+
+    fieldsSet.push(headerFieldsTop);
+    fieldsSet.push(headerFieldsBottom);
+
+    fieldsSet.push(dataFields);
+
+    fieldsSet.push([]);
+
+    for (const { category, data } of Object.values(client)) {
+      if (category === "Users") {
+        const users = data;
+
+        if (users.length > 0) {
+          fieldsSet.push(users[0].map(() => "Users"));
+          fieldsSet.push(users[0].map(({ key }) => escapeCsv(key)));
+
+          for (const user of users) {
+            fieldsSet.push(dataToFields(user));
+          }
+        }
+      }
+    }
+
+    fieldsSet.push([]);
+    fieldsSet.push([]);
+
+    for (const fields of fieldsSet) {
+      csv += fields.join(",") + NEW_LINE;
+    }
   }
 
   return csv;
@@ -181,6 +222,59 @@ const scrapeClientData = async () => {
 
   tbodyElement.remove();
 
+  data.push({
+    category: "Users",
+    data: await scrapeClientUserData(),
+  });
+
+  return data;
+};
+
+const scrapeClientUserData = async () => {
+  const tbodyElement = await queryDoc(
+    () =>
+      document.getElementById("activeusers").getElementsByTagName("table").item(0).lastElementChild,
+  );
+  const trElements = tbodyElement.getElementsByTagName("tr");
+
+  const data = [];
+
+  for await (const trElement of trElements) {
+    const username = await queryDoc(() => trElement.children.item(0).innerText);
+    const name = await queryDoc(() => trElement.children.item(1).innerText);
+    const email = await queryDoc(() => trElement.children.item(2).innerText);
+    const lastOrder = await queryDoc(() => trElement.children.item(3).innerText);
+    const accountType = await queryDoc(() => {
+      const innerText = trElement.children.item(4).innerText;
+      return innerText === "Master Account" ? "Yes" : "No";
+    });
+
+    data.push([
+      {
+        key: "Username",
+        value: username,
+      },
+      {
+        key: "Name",
+        value: name,
+      },
+      {
+        key: "Email",
+        value: email,
+      },
+      {
+        key: "Last Order",
+        value: lastOrder,
+      },
+      {
+        key: "Is Master",
+        value: accountType,
+      },
+    ]);
+  }
+
+  tbodyElement.remove();
+
   return data;
 };
 
@@ -243,6 +337,7 @@ const coverScreen = (text, current, total) => {
 
     color: #fff;
     font-size: 48px;
+    text-align: center;
   `;
   promptElement.innerText = text;
 
@@ -252,6 +347,7 @@ const coverScreen = (text, current, total) => {
 
     color: #fff;
     font-size: 32px;
+    text-align: center;
   `;
   progressElement.innerText = `${current} / ${total}`;
 
